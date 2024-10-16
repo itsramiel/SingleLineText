@@ -1,117 +1,89 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
 import {
+  FlatList,
+  ListRenderItemInfo,
   SafeAreaView,
-  ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from 'react-native';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+function getRandomInt(min: number, max: number) {
+  return min + Math.floor(Math.random() * (max - min));
+}
+const rows = Array.from({length: 100}).map((): [number, number, number] => [
+  getRandomInt(1, 100),
+  getRandomInt(50, 200),
+  getRandomInt(1, 20),
+]);
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+function renderItem(info: ListRenderItemInfo<[number, number, number]>) {
+  return <ListItem row={info.item} />;
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
+function App() {
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <SafeAreaView style={styles.screen}>
+      <FlatList
+        contentContainerStyle={styles.flatlistContent}
+        renderItem={renderItem}
+        data={rows}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
     </SafeAreaView>
   );
 }
 
+interface ListItemProps {
+  row: [number, number, number];
+}
+function ListItem({row}: ListItemProps) {
+  return (
+    <View style={styles.itemContainer}>
+      {row.map((value, index) => (
+        <View key={index} style={styles.item}>
+          <Text
+            style={styles.numberText}
+            numberOfLines={1}
+            adjustsFontSizeToFit>
+            {value}
+          </Text>
+          <Text style={styles.textText}>some text</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  screen: {
+    flex: 1,
+    backgroundColor: 'white',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  flatlistContent: {
+    gap: 8,
+    margin: 8,
   },
-  sectionDescription: {
-    marginTop: 8,
+  itemContainer: {
+    backgroundColor: 'lightblue',
+    padding: 10,
+    flexDirection: 'row',
+    borderRadius: 4,
+    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  item: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'baseline',
+  },
+  numberText: {
+    flexShrink: 1,
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  textText: {
     fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
   },
 });
 
