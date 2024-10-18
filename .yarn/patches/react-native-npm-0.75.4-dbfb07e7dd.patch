@@ -1,0 +1,75 @@
+diff --git a/Libraries/Text/Text/NSTextStorage+FontScaling.m b/Libraries/Text/Text/NSTextStorage+FontScaling.m
+index fa86a458970a95301af3297b44e9f962d4fe6895..7f0ce6c734dbe0508e64f6a739fc6aad6b957fa2 100644
+--- a/Libraries/Text/Text/NSTextStorage+FontScaling.m
++++ b/Libraries/Text/Text/NSTextStorage+FontScaling.m
+@@ -65,6 +65,14 @@ - (RCTTextSizeComparisonOptions)compareToSize:(CGSize)size thresholdRatio:(CGFlo
+ {
+   NSLayoutManager *layoutManager = self.layoutManagers.firstObject;
+   NSTextContainer *textContainer = layoutManager.textContainers.firstObject;
++    // A workaround for truncatedGlyphRangeInLineFragmentForGlyphAtIndex returning NSNotFound when text has only
++  // one character and it gets truncated
++  if ([self length] == 1) {
++    CGSize characterSize = [[self string] sizeWithAttributes:[self attributesAtIndex:0 effectiveRange:nil]];
++    if (characterSize.width > size.width) {
++      return RCTTextSizeComparisonLarger;
++    }
++  }
+ 
+   [layoutManager ensureLayoutForTextContainer:textContainer];
+ 
+diff --git a/ReactAndroid/src/main/java/com/facebook/react/views/text/ReactTextShadowNode.java b/ReactAndroid/src/main/java/com/facebook/react/views/text/ReactTextShadowNode.java
+index be27e77d13956a4af214a6bf97597037440a153f..424c2b84f034e71dabc49dc4df51b0ebcc6a5bd9 100644
+--- a/ReactAndroid/src/main/java/com/facebook/react/views/text/ReactTextShadowNode.java
++++ b/ReactAndroid/src/main/java/com/facebook/react/views/text/ReactTextShadowNode.java
+@@ -83,8 +83,9 @@ public class ReactTextShadowNode extends ReactBaseTextShadowNode {
+             int minimumFontSize =
+                 (int) Math.max(mMinimumFontScale * initialFontSize, PixelUtil.toPixelFromDIP(4));
+             while (currentFontSize > minimumFontSize
+-                && (mNumberOfLines != ReactConstants.UNSET && layout.getLineCount() > mNumberOfLines
+-                    || heightMode != YogaMeasureMode.UNDEFINED && layout.getHeight() > height)) {
++                && ((mNumberOfLines != ReactConstants.UNSET && layout.getLineCount() > mNumberOfLines
++                    || heightMode != YogaMeasureMode.UNDEFINED && layout.getHeight() > height)
++                  || (text.length() == 1 && paint.measureText(text.toString()) > width))) {
+               // TODO: We could probably use a smarter algorithm here. This will require 0(n)
+               // measurements
+               // based on the number of points the font size needs to be reduced by.
+@@ -94,13 +95,15 @@ public class ReactTextShadowNode extends ReactBaseTextShadowNode {
+               ReactAbsoluteSizeSpan[] sizeSpans =
+                   text.getSpans(0, text.length(), ReactAbsoluteSizeSpan.class);
+               for (ReactAbsoluteSizeSpan span : sizeSpans) {
++                int newSize = (int) Math.max((span.getSize() * ratio), minimumFontSize);
+                 text.setSpan(
+-                    new ReactAbsoluteSizeSpan(
+-                        (int) Math.max((span.getSize() * ratio), minimumFontSize)),
++                    new ReactAbsoluteSizeSpan(newSize),
+                     text.getSpanStart(span),
+                     text.getSpanEnd(span),
+                     text.getSpanFlags(span));
+                 text.removeSpan(span);
++
++                paint.setTextSize(newSize);
+               }
+               layout = measureSpannedText(text, width, widthMode);
+             }
+diff --git a/ReactAndroid/src/main/java/com/facebook/react/views/text/TextLayoutManager.java b/ReactAndroid/src/main/java/com/facebook/react/views/text/TextLayoutManager.java
+index 2921f84140d1d43de20d020cbab59922a401e37b..c77fc7bc73dd7e3bb442be58cc2b9e766c32587e 100644
+--- a/ReactAndroid/src/main/java/com/facebook/react/views/text/TextLayoutManager.java
++++ b/ReactAndroid/src/main/java/com/facebook/react/views/text/TextLayoutManager.java
+@@ -464,7 +464,8 @@ public class TextLayoutManager {
+                 && maximumNumberOfLines != 0
+                 && layout.getLineCount() > maximumNumberOfLines)
+             || (heightYogaMeasureMode != YogaMeasureMode.UNDEFINED
+-                && layout.getHeight() > height))) {
++                && layout.getHeight() > height)
++            || (text.length() == 1 && layout.getPaint().measureText(text.toString()) > width))) {
+       // TODO: We could probably use a smarter algorithm here. This will require 0(n)
+       // measurements based on the number of points the font size needs to be reduced by.
+       currentFontSize -= Math.max(1, (int) PixelUtil.toPixelFromDIP(1));
+@@ -480,6 +481,7 @@ public class TextLayoutManager {
+             text.getSpanFlags(span));
+         text.removeSpan(span);
+       }
++      boring = BoringLayout.isBoring(text, paint);
+       layout =
+           createLayout(
+               text,
